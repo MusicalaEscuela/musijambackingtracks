@@ -1,0 +1,112 @@
+:root {
+  /* Paleta oficial Musicala — manual de imagen 2026 */
+  --bg: #0C0A1E;          /* azul casi negro */
+  --indigo: #220A63;      /* indigo profundo (color del logo) */
+  --blue: #0C41C4;        /* azul — inicio de la onda */
+  --violet: #5729FF;      /* violeta */
+  --purple: #680DBF;      /* púrpura */
+  --magenta: #CE0071;     /* magenta — final de la onda */
+  --panel: rgba(255,255,255,.06);
+  --panel-2: rgba(255,255,255,.10);
+  --text: #F9F9F9;
+  --muted: #B9B4D6;
+  --accent: var(--purple);
+  --accent2: var(--magenta);
+  --gold: var(--blue);    /* repurpose: acento secundario azul */
+  --green: var(--violet); /* repurpose: acento de pulso violeta */
+  --danger: #ff6b6b;
+  --shadow: 0 20px 60px rgba(0,0,0,.45);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Roboto, Calibri, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(206,0,113,.22), transparent 38%),
+    radial-gradient(circle at 85% 10%, rgba(12,65,196,.20), transparent 30%),
+    linear-gradient(135deg, #0C0A1E, #1a0d3f 48%, #0C0A1E);
+  min-height: 100vh;
+}
+.app { width: min(1200px, 94vw); margin: 0 auto; padding: 28px 0 44px; }
+.hero {
+  display: flex; justify-content: space-between; gap: 24px; align-items: stretch;
+  padding: 28px; border: 1px solid rgba(255,255,255,.12); border-radius: 28px;
+  background: linear-gradient(135deg, rgba(255,255,255,.12), rgba(255,255,255,.05));
+  box-shadow: var(--shadow); backdrop-filter: blur(18px);
+}
+.brand-logo { height: 56px; width: auto; display: block; margin: 0 0 14px;
+  background: #fff; padding: 8px 14px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+.eyebrow { color: #6fb0ff; text-transform: uppercase; letter-spacing: .22em; font-size: .75rem; margin: 0 0 8px; }
+h1 { font-size: clamp(3rem, 8vw, 6rem); line-height: .85; margin: 0; letter-spacing: -0.08em; font-weight: 900;
+  background: linear-gradient(100deg, var(--blue), var(--violet) 45%, var(--magenta));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.subtitle { max-width: 680px; color: var(--muted); font-size: 1.05rem; }
+.status-card {
+  min-width: 190px; padding: 22px; border-radius: 24px; background: #09050f; border: 1px solid rgba(255,255,255,.12);
+  display: grid; align-content: center; text-align: center;
+}
+.status-card span { color: var(--gold); font-size: .85rem; }
+.status-card strong { font-size: 3rem; margin: 6px 0; }
+.status-card small { color: var(--muted); }
+.beat-dot {
+  width: 16px; height: 16px; border-radius: 50%; margin: 12px auto 0;
+  background: rgba(255,255,255,.18); transition: background .05s;
+}
+.beat-dot.pulse { animation: beatPulse .28s ease-out; }
+.beat-dot.pulse.accent { animation: beatPulseAccent .32s ease-out; }
+@keyframes beatPulse {
+  0% { transform: scale(1.8); background: var(--green); box-shadow: 0 0 18px var(--green); }
+  100% { transform: scale(1); background: rgba(255,255,255,.18); box-shadow: none; }
+}
+@keyframes beatPulseAccent {
+  0% { transform: scale(2.2); background: var(--gold); box-shadow: 0 0 24px var(--gold); }
+  100% { transform: scale(1); background: rgba(255,255,255,.18); box-shadow: none; }
+}
+.grid { display: grid; grid-template-columns: 1.05fr 1.4fr; gap: 18px; margin-top: 18px; }
+.panel {
+  background: var(--panel); border: 1px solid rgba(255,255,255,.12); border-radius: 26px; padding: 22px;
+  box-shadow: var(--shadow); backdrop-filter: blur(16px);
+}
+h2 { margin: 0 0 18px; font-size: 1.1rem; }
+label { display: grid; gap: 8px; color: var(--muted); margin-bottom: 14px; font-size: .92rem; }
+select, input[type="range"] { width: 100%; }
+select {
+  background: #12091e; color: var(--text); border: 1px solid rgba(255,255,255,.16); border-radius: 14px;
+  padding: 13px 14px; font-size: 1rem; outline: none;
+}
+input[type="range"] { accent-color: var(--accent); }
+.buttons { display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-top: 18px; }
+button {
+  border: 0; color: #fff; background: linear-gradient(100deg, var(--blue), var(--violet) 50%, var(--magenta));
+  padding: 14px 16px; border-radius: 16px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 12px 30px rgba(87,41,255,.28);
+}
+button:hover { transform: translateY(-1px); }
+.ghost { background: var(--panel-2); color: var(--text); box-shadow: none; border: 1px solid rgba(255,255,255,.12); }
+.small { padding: 8px 10px; font-size: .8rem; }
+.wide { width: 100%; }
+.section-header { display: flex; align-items: center; justify-content: space-between; }
+.progression { display: grid; grid-template-columns: repeat(4, minmax(90px, 1fr)); gap: 12px; }
+.chord {
+  min-height: 92px; border-radius: 20px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.10);
+  display: grid; place-items: center; font-size: 1.8rem; font-weight: 900; color: var(--text); position: relative;
+}
+.chord small { position: absolute; top: 10px; left: 12px; color: var(--muted); font-size: .7rem; font-weight: 500; }
+.chord.active { background: linear-gradient(135deg, rgba(87,41,255,.85), rgba(206,0,113,.70)); box-shadow: 0 0 28px rgba(206,0,113,.40); }
+.prog-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.chord .chord-name { font-size: 1.8rem; font-weight: 900; }
+.chord-edit { position: absolute; bottom: 8px; left: 8px; right: 8px; display: none; gap: 4px; }
+.chord:hover .chord-edit { display: flex; }
+.chord-edit select { padding: 4px 4px; font-size: .72rem; border-radius: 8px; flex: 1; min-width: 0; }
+.chord-edit .del-chord { padding: 2px 6px; font-size: .72rem; flex: 0 0 auto; }
+.chord:hover .chord-name { opacity: .35; }
+.practice-card { background: rgba(0,0,0,.18); border-radius: 20px; padding: 16px; margin-bottom: 12px; }
+.practice-card h3 { margin: 0 0 8px; color: var(--green); }
+.practice-card p { margin: 0; color: var(--text); line-height: 1.45; }
+.hint { color: var(--muted); font-size: .88rem; line-height: 1.45; }
+@media (max-width: 860px) {
+  .hero, .grid { grid-template-columns: 1fr; display: grid; }
+  .progression { grid-template-columns: repeat(2, 1fr); }
+  .buttons { grid-template-columns: 1fr; }
+}

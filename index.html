@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MusiJam | Backing Tracks Inteligentes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&family=Sacramento&display=swap" rel="stylesheet" />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div>
+        <img src="logo.png" alt="Musicala" class="brand-logo" />
+        <p class="eyebrow">Musicala Lab</p>
+        <h1>MusiJam</h1>
+        <p class="subtitle">Backing tracks generativos para improvisar, estudiar escalas y practicar sobre progresiones reales.</p>
+      </div>
+      <div class="status-card">
+        <span id="audioStatus">Audio apagado</span>
+        <strong id="currentChord">—</strong>
+        <small>Acorde actual</small>
+        <div id="beatDot" class="beat-dot"></div>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel controls">
+        <h2>Configura tu jam</h2>
+
+        <label>Género
+          <select id="genre">
+            <option value="blues">Blues</option>
+            <option value="rock">Rock</option>
+            <option value="funk">Funk</option>
+            <option value="pop">Pop</option>
+            <option value="bossa">Bossa Nova</option>
+            <option value="reggae">Reggae</option>
+            <option value="jazz">Jazz</option>
+            <option value="soul">Soul / Neo-soul</option>
+          </select>
+        </label>
+
+        <label>Tonalidad
+          <select id="key"></select>
+        </label>
+
+        <label>Modo
+          <select id="mode">
+            <option value="major">Mayor</option>
+            <option value="minor">Menor</option>
+            <option value="dorian">Dórico</option>
+            <option value="mixolydian">Mixolidio</option>
+            <option value="blues">Blues</option>
+          </select>
+        </label>
+
+        <label>Tempo: <span id="tempoValue">100</span> BPM
+          <input id="tempo" type="range" min="60" max="180" value="100" />
+        </label>
+
+        <div class="buttons">
+          <button id="startBtn">▶ Iniciar Jam</button>
+          <button id="stopBtn" class="ghost">■ Detener</button>
+          <button id="randomBtn" class="ghost">🎲 Sorpréndeme</button>
+        </div>
+      </section>
+
+      <section class="panel progression-panel">
+        <div class="section-header">
+          <h2>Progresión</h2>
+          <div class="prog-actions">
+            <button id="addBtn" class="small ghost">＋ Acorde</button>
+            <button id="jazzBtn" class="small ghost">🎷 Jazzificar</button>
+            <button id="saveBtn" class="small ghost">Guardar</button>
+            <button id="loadBtn" class="small ghost">Cargar</button>
+            <button id="copyBtn" class="small">Copiar</button>
+          </div>
+        </div>
+        <p class="hint">Edita cada acorde: cambia su fundamental y su calidad (maj7, m7, 9, sus4…), agrega o quita compases. Guarda tu progresión y vuelve a ella cuando quieras.</p>
+        <div id="progression" class="progression"></div>
+      </section>
+
+      <section class="panel practice-panel">
+        <h2>Guía de práctica</h2>
+        <div class="practice-card">
+          <h3>Escalas sugeridas</h3>
+          <p id="scaleSuggestion">Elige una tonalidad y dale iniciar, genio del caos organizado.</p>
+        </div>
+        <div class="practice-card">
+          <h3>Reto de improvisación</h3>
+          <p id="challenge">Usa solo 3 notas durante una vuelta completa.</p>
+        </div>
+        <button id="challengeBtn" class="ghost wide">Nuevo reto</button>
+      </section>
+
+      <section class="panel mixer-panel">
+        <h2>Mezcla</h2>
+        <label>Batería
+          <input id="drumsVol" type="range" min="0" max="1" step="0.01" value="0.65" />
+        </label>
+        <label>Bajo
+          <input id="bassVol" type="range" min="0" max="1" step="0.01" value="0.55" />
+        </label>
+        <label>Armonía
+          <input id="chordsVol" type="range" min="0" max="1" step="0.01" value="0.45" />
+        </label>
+        <p class="hint">Funciona localmente. No graba audio todavía, porque tampoco vamos a fingir que el MVP nació siendo Abbey Road.</p>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
