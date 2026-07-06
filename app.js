@@ -102,6 +102,7 @@ let barCount = 0;
 const $ = id => document.getElementById(id);
 const SCHEDULE_AHEAD = 0.12;  // s que miramos hacia adelante
 const LOOKAHEAD_MS = 25;
+const SAVED_PROGRESSIONS_KEY = 'musijam:progressions';
 
 /* ====================== Init ====================== */
 function init() {
@@ -131,7 +132,7 @@ function init() {
   $('jazzBtn')?.addEventListener('click', jazzify);
 
   // Cargar la última progresión guardada al abrir (si existe)
-  if (localStorage.getItem('musijam:saved')) loadProgression();
+  migrateLegacyProgression();
 }
 
 /* Ajusta los faders de la mezcla al balance ideal del género */
@@ -472,18 +473,50 @@ function copyProgression() {
 }
 
 function saveProgression() {
-  const data = { key:$('key').value, mode:$('mode').value, genre:$('genre').value, tempo:$('tempo').value, progression };
-  localStorage.setItem('musijam:saved', JSON.stringify(data));
-  if ($('saveBtn')) { $('saveBtn').textContent = 'Guardado'; setTimeout(()=>$('saveBtn').textContent='Guardar',1000); }
+  const requestedName = prompt('Nombre para esta progresión:');
+  if (!requestedName?.trim()) return;
+  const saved = getSavedProgressions();
+  const name = getUniqueProgressionName(requestedName.trim(), saved);
+  saved.push({ name, savedAt:new Date().toISOString(), key:$('key').value, mode:$('mode').value, genre:$('genre').value, tempo:$('tempo').value, progression });
+  localStorage.setItem(SAVED_PROGRESSIONS_KEY, JSON.stringify(saved));
+  if ($('saveBtn')) { $('saveBtn').textContent = `Guardado: ${name}`; setTimeout(()=>$('saveBtn').textContent='Guardar',1600); }
 }
 function loadProgression() {
-  const raw = localStorage.getItem('musijam:saved');
-  if (!raw) return;
-  const d = JSON.parse(raw);
+  const saved = getSavedProgressions();
+  if (!saved.length) { alert('Todavía no hay progresiones personalizadas guardadas.'); return; }
+  const list = saved.map((item, index) => `${index + 1}. ${item.name}`).join('\n');
+  const selection = prompt(`Escribe el número de la progresión que quieres cargar:\n\n${list}`);
+  if (selection === null) return;
+  const d = saved[Number(selection) - 1];
+  if (!d) { alert('Elige un número válido de la lista.'); return; }
   $('key').value = d.key; $('mode').value = d.mode; $('genre').value = d.genre;
   $('tempo').value = d.tempo; $('tempoValue').textContent = d.tempo;
   applyGenreMix(d.genre);
   progression = d.progression; renderProgression(); updateScaleSuggestion();
+}
+
+function getSavedProgressions() {
+  try { return JSON.parse(localStorage.getItem(SAVED_PROGRESSIONS_KEY)) || []; }
+  catch { return []; }
+}
+
+function getUniqueProgressionName(requestedName, saved) {
+  const existing = new Set(saved.map(item => item.name.toLocaleLowerCase()));
+  if (!existing.has(requestedName.toLocaleLowerCase())) return requestedName;
+  let copy = 2;
+  while (existing.has(`${requestedName} (${copy})`.toLocaleLowerCase())) copy++;
+  return `${requestedName} (${copy})`;
+}
+
+function migrateLegacyProgression() {
+  const raw = localStorage.getItem('musijam:saved');
+  if (!raw) return;
+  try {
+    const saved = getSavedProgressions();
+    saved.push({ ...JSON.parse(raw), name:getUniqueProgressionName('Mi progresión', saved), savedAt:new Date().toISOString() });
+    localStorage.setItem(SAVED_PROGRESSIONS_KEY, JSON.stringify(saved));
+    localStorage.removeItem('musijam:saved');
+  } catch {}
 }
 
 /* ====================== Jazzificar ====================== */
