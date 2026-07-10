@@ -58,6 +58,14 @@
           </select>
         </label>
 
+        <label>Métrica
+          <select id="meter">
+            <option value="4/4">4/4</option>
+            <option value="3/4">3/4</option>
+            <option value="6/8">6/8</option>
+          </select>
+        </label>
+
         <label>Tempo: <span id="tempoValue">100</span> BPM
           <input id="tempo" type="range" min="60" max="180" value="100" />
         </label>
@@ -80,7 +88,7 @@
             <button id="copyBtn" class="small">Copiar</button>
           </div>
         </div>
-        <p class="hint">Edita cada acorde: cambia su fundamental y su calidad (maj7, m7, 9, sus4…), agrega o quita compases. Guarda tu progresión y vuelve a ella cuando quieras.</p>
+        <p class="hint">Edita cada acorde: cambia su fundamental y su calidad (maj7, m7, 9, sus4…), agrega o quita compases. Guarda varias progresiones con nombres diferentes y vuelve a cargarlas cuando quieras.</p>
         <div id="progression" class="progression"></div>
       </section>
 

@@ -103,6 +103,7 @@ const $ = id => document.getElementById(id);
 const SCHEDULE_AHEAD = 0.12;  // s que miramos hacia adelante
 const LOOKAHEAD_MS = 25;
 const SAVED_PROGRESSIONS_KEY = 'musijam:progressions';
+const METER_STEPS = { '4/4': 16, '3/4': 12, '6/8': 12 };
 
 /* ====================== Init ====================== */
 function init() {
@@ -113,7 +114,7 @@ function init() {
   updateScaleSuggestion();
 
   $('tempo').addEventListener('input', () => $('tempoValue').textContent = $('tempo').value);
-  ['genre','key','mode'].forEach(id => $(id).addEventListener('change', () => {
+  ['genre','key','mode','meter'].forEach(id => $(id).addEventListener('change', () => {
     if (id === 'genre') {
       const g = genrePatterns[$('genre').value];
       if (g.tempo) { $('tempo').value = g.tempo; $('tempoValue').textContent = g.tempo; }
@@ -256,13 +257,14 @@ function startJam() {
   const beatDur = 60 / Number($('tempo').value);
   const startAt = audioCtx.currentTime + .12;
   // Conteo de entrada: un compás de clics (el "1" acentuado) antes de tocar
-  for (let i = 0; i < 4; i++) {
+  const countBeats = $('meter').value === '6/8' ? 6 : Number($('meter').value[0]);
+  for (let i = 0; i < countBeats; i++) {
     countClick(startAt + i * beatDur, i === 0);
     flashBeat(startAt + i * beatDur, i === 0, 4 - i);
   }
-  nextNoteTime = startAt + 4 * beatDur;   // la música arranca tras el conteo
+  nextNoteTime = startAt + countBeats * beatDur;   // la música arranca tras el conteo
   $('audioStatus').textContent = 'Conteo…';
-  setTimeout(() => { if (isPlaying) $('audioStatus').textContent = 'Sonando'; }, 4 * beatDur * 1000);
+  setTimeout(() => { if (isPlaying) $('audioStatus').textContent = 'Sonando'; }, countBeats * beatDur * 1000);
   updateActiveChord();
   scheduler();
 }
@@ -296,8 +298,10 @@ function stopJam() {
 
 function stepDuration() {
   const bpm = Number($('tempo').value);
-  return (60 / bpm) / 4;   // duración de una semicorchea
+  return (60 / bpm) / 4;   // semicorchea; 3/4 y 6/8 usan 12 pasos por compás
 }
+function meterSteps() { return METER_STEPS[$('meter')?.value] || 16; }
+function beatSteps() { return $('meter')?.value === '6/8' ? 2 : 4; }
 
 function currentKit() { return DRUM_KITS[genrePatterns[$('genre').value].drum] || DRUM_KITS.rock; }
 
@@ -316,7 +320,7 @@ function scheduler() {
 function advanceStep() {
   nextNoteTime += stepDuration();
   current16++;
-  if (current16 >= 16) { current16 = 0; barCount++; }
+  if (current16 >= meterSteps()) { current16 = 0; barCount++; }
 }
 
 function scheduleStep(step, time, kit) {
@@ -330,8 +334,9 @@ function scheduleStep(step, time, kit) {
   if (kit.snare[step]) snare(time);
   if (kit.hat[step])   hat(time, step % 4 === 0 ? .9 : .5);
   // Bajo + pulso visual: en negras (cada 4 pasos)
-  if (step % 4 === 0) {
-    playBass(progression[chordIndexForBar()], time, step / 4);
+  if (step % beatSteps() === 0) {
+    const beat = Math.floor(step / beatSteps());
+    playBass(progression[chordIndexForBar()], time, beat);
     flashBeat(time, step === 0, 0);
   }
 }
@@ -477,7 +482,7 @@ function saveProgression() {
   if (!requestedName?.trim()) return;
   const saved = getSavedProgressions();
   const name = getUniqueProgressionName(requestedName.trim(), saved);
-  saved.push({ name, savedAt:new Date().toISOString(), key:$('key').value, mode:$('mode').value, genre:$('genre').value, tempo:$('tempo').value, progression });
+  saved.push({ name, savedAt:new Date().toISOString(), key:$('key').value, mode:$('mode').value, meter:$('meter').value, genre:$('genre').value, tempo:$('tempo').value, progression });
   localStorage.setItem(SAVED_PROGRESSIONS_KEY, JSON.stringify(saved));
   if ($('saveBtn')) { $('saveBtn').textContent = `Guardado: ${name}`; setTimeout(()=>$('saveBtn').textContent='Guardar',1600); }
 }
@@ -490,6 +495,7 @@ function loadProgression() {
   const d = saved[Number(selection) - 1];
   if (!d) { alert('Elige un número válido de la lista.'); return; }
   $('key').value = d.key; $('mode').value = d.mode; $('genre').value = d.genre;
+  $('meter').value = d.meter || '4/4';
   $('tempo').value = d.tempo; $('tempoValue').textContent = d.tempo;
   applyGenreMix(d.genre);
   progression = d.progression; renderProgression(); updateScaleSuggestion();
