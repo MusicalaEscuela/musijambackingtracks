@@ -122,6 +122,37 @@
     </main>
   </div>
 
+  <!-- Modal: gestor de progresiones guardadas -->
+  <div id="libraryModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="libraryTitle">
+      <div class="modal-head">
+        <h2 id="libraryTitle">Mis progresiones</h2>
+        <button class="icon-btn" data-close aria-label="Cerrar">✕</button>
+      </div>
+      <p class="hint">Guardadas en este navegador. Puedes cargar, renombrar, duplicar o eliminar cada una.</p>
+      <div id="libraryList" class="library-list"></div>
+    </div>
+  </div>
+
+  <!-- Modal: guardar / renombrar (input bonito en vez de prompt) -->
+  <div id="nameModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card small-card" role="dialog" aria-modal="true" aria-labelledby="nameTitle">
+      <div class="modal-head">
+        <h2 id="nameTitle">Guardar progresión</h2>
+        <button class="icon-btn" data-close aria-label="Cerrar">✕</button>
+      </div>
+      <label>Nombre
+        <input id="nameInput" type="text" maxlength="48" placeholder="Ej: Blues en A para calentar" />
+      </label>
+      <div class="modal-actions">
+        <button class="ghost" data-close>Cancelar</button>
+        <button id="nameConfirm">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
