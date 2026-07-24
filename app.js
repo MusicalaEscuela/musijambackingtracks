@@ -124,6 +124,8 @@ const challenges = [
 /* ====================== Estado ====================== */
 let audioCtx, master, comp, reverb, drumsGain, bassGain, chordsGain, chordBus;
 let progression = [];
+let customProgression = false;   // true si la progresión fue cargada o editada a mano
+let lastKey = 'A';               // tono anterior, para transponer progresiones personalizadas
 let isPlaying = false;
 let current16 = 0;           // paso actual dentro del compás (0..15)
 let nextNoteTime = 0;        // tiempo (audioCtx) del próximo paso de 16
@@ -151,7 +153,15 @@ function init() {
       if (g.tempo) { $('tempo').value = g.tempo; $('tempoValue').textContent = g.tempo; }
       applyGenreMix($('genre').value);
     }
-    buildProgression(); updateScaleSuggestion();
+    // Progresión personalizada (cargada o editada): no se regenera.
+    // Cambiar el tono la transpone; género/escala/métrica solo cambian ritmo y sonido.
+    if (customProgression) {
+      if (id === 'key') transposeProgression(lastKey, $('key').value);
+    } else {
+      buildProgression();
+    }
+    lastKey = $('key').value;
+    updateScaleSuggestion();
   }));
   $('startBtn').addEventListener('click', startJam);
   $('stopBtn').addEventListener('click', stopJam);
@@ -160,7 +170,7 @@ function init() {
   $('copyBtn').addEventListener('click', copyProgression);
   $('saveBtn')?.addEventListener('click', saveProgression);
   $('loadBtn')?.addEventListener('click', loadProgression);
-  $('addBtn')?.addEventListener('click', () => { const c = progression[progression.length-1]; progression.push({ ...c, index: progression.length }); renderProgression(); });
+  $('addBtn')?.addEventListener('click', () => { const c = progression[progression.length-1]; progression.push({ ...c, index: progression.length }); customProgression = true; renderProgression(); });
   $('jazzBtn')?.addEventListener('click', jazzify);
 
   // Cerrar modales: botones [data-close], click en backdrop, tecla Escape
@@ -198,6 +208,16 @@ function buildProgression() {
     const quality = chordQuality(d, mode, pattern.quality);
     return { root, quality, degree: d, index: i };
   });
+  customProgression = false;
+  lastKey = key;
+  renderProgression();
+}
+
+/* Transpone la progresión actual según la diferencia entre dos tonos */
+function transposeProgression(fromKey, toKey) {
+  const delta = ((SEMIS[toKey] - SEMIS[fromKey]) % 12 + 12) % 12;
+  if (!delta) return;
+  progression.forEach(c => { c.root = NOTE_NAMES[(SEMIS[c.root] + delta) % 12]; });
   renderProgression();
 }
 
@@ -236,9 +256,9 @@ function renderProgression() {
        </div>
      </div>`).join('');
 
-  document.querySelectorAll('.root-sel').forEach(s => s.addEventListener('change', e => { progression[+e.target.dataset.i].root = e.target.value; renderProgression(); }));
-  document.querySelectorAll('.qual-sel').forEach(s => s.addEventListener('change', e => { progression[+e.target.dataset.i].quality = e.target.value; renderProgression(); }));
-  document.querySelectorAll('.del-chord').forEach(b => b.addEventListener('click', e => { if (progression.length>1){ progression.splice(+e.target.dataset.i,1); renderProgression(); } }));
+  document.querySelectorAll('.root-sel').forEach(s => s.addEventListener('change', e => { progression[+e.target.dataset.i].root = e.target.value; customProgression = true; renderProgression(); }));
+  document.querySelectorAll('.qual-sel').forEach(s => s.addEventListener('change', e => { progression[+e.target.dataset.i].quality = e.target.value; customProgression = true; renderProgression(); }));
+  document.querySelectorAll('.del-chord').forEach(b => b.addEventListener('click', e => { if (progression.length>1){ progression.splice(+e.target.dataset.i,1); customProgression = true; renderProgression(); } }));
 }
 
 function updateActiveChord() {
@@ -761,6 +781,8 @@ function loadSavedById(id) {
   $('tempo').value = d.tempo; $('tempoValue').textContent = d.tempo;
   applyGenreMix(d.genre);
   progression = (d.progression || []).map(c => ({ ...c }));
+  customProgression = true;
+  lastKey = $('key').value;
   renderProgression(); updateScaleSuggestion();
   closeModal('libraryModal');
 }
@@ -871,6 +893,7 @@ function jazzify() {
     }
   });
   progression = out;
+  customProgression = true;
   renderProgression();
 }
 
