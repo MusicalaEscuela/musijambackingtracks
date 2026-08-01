@@ -125,6 +125,7 @@ const challenges = [
 let audioCtx, master, comp, reverb, drumsGain, bassGain, chordsGain, chordBus;
 let progression = [];
 let customProgression = false;   // true si la progresión fue cargada o editada a mano
+let currentSavedId = null;       // id de la progresión guardada que estamos editando (null = suelta)
 let lastKey = 'A';               // tono anterior, para transponer progresiones personalizadas
 let isPlaying = false;
 let current16 = 0;           // paso actual dentro del compás (0..15)
@@ -162,7 +163,9 @@ function init() {
     }
     lastKey = $('key').value;
     updateScaleSuggestion();
+    persistCurrentSaved();
   }));
+  $('tempo').addEventListener('change', persistCurrentSaved);
   $('startBtn').addEventListener('click', startJam);
   $('stopBtn').addEventListener('click', stopJam);
   $('randomBtn').addEventListener('click', randomize);
@@ -170,7 +173,9 @@ function init() {
   $('copyBtn').addEventListener('click', copyProgression);
   $('saveBtn')?.addEventListener('click', saveProgression);
   $('loadBtn')?.addEventListener('click', loadProgression);
-  $('addBtn')?.addEventListener('click', () => { const c = progression[progression.length-1]; progression.push({ ...c, index: progression.length }); customProgression = true; renderProgression(); });
+  $('saveAsBtn')?.addEventListener('click', () => saveProgression({ asNew: true }));
+  $('unlinkBtn')?.addEventListener('click', () => setCurrentSaved(null));
+  $('addBtn')?.addEventListener('click', () => { const c = progression[progression.length-1]; progression.push({ ...c, index: progression.length }); markEdited(); renderProgression(); });
   $('jazzBtn')?.addEventListener('click', jazzify);
 
   // Cerrar modales: botones [data-close], click en backdrop, tecla Escape
@@ -209,6 +214,7 @@ function buildProgression() {
     return { root, quality, degree: d, index: i };
   });
   customProgression = false;
+  setCurrentSaved(null);
   lastKey = key;
   renderProgression();
 }
@@ -252,13 +258,67 @@ function renderProgression() {
        <div class="chord-edit">
          <select class="root-sel" data-i="${i}">${NOTE_NAMES.map(n=>`<option ${n===c.root?'selected':''}>${n}</option>`).join('')}</select>
          <select class="qual-sel" data-i="${i}">${QUALITY_LIST.map(q=>`<option value="${q}" ${q===c.quality?'selected':''}>${q||'maj'}</option>`).join('')}</select>
-         <button class="del-chord small ghost" data-i="${i}">✕</button>
+         <button class="add-chord small ghost" data-i="${i}" title="Insertar un acorde después de este">＋</button>
+         <button class="del-chord small ghost" data-i="${i}" title="Quitar este acorde">✕</button>
        </div>
      </div>`).join('');
 
-  document.querySelectorAll('.root-sel').forEach(s => s.addEventListener('change', e => { progression[+e.target.dataset.i].root = e.target.value; customProgression = true; renderProgression(); }));
-  document.querySelectorAll('.qual-sel').forEach(s => s.addEventListener('change', e => { progression[+e.target.dataset.i].quality = e.target.value; customProgression = true; renderProgression(); }));
-  document.querySelectorAll('.del-chord').forEach(b => b.addEventListener('click', e => { if (progression.length>1){ progression.splice(+e.target.dataset.i,1); customProgression = true; renderProgression(); } }));
+  document.querySelectorAll('.root-sel').forEach(s => s.addEventListener('change', e => { progression[+e.target.dataset.i].root = e.target.value; markEdited(); renderProgression(); }));
+  document.querySelectorAll('.qual-sel').forEach(s => s.addEventListener('change', e => { progression[+e.target.dataset.i].quality = e.target.value; markEdited(); renderProgression(); }));
+  document.querySelectorAll('.del-chord').forEach(b => b.addEventListener('click', e => { if (progression.length>1){ progression.splice(+e.target.dataset.i,1); reindexProgression(); markEdited(); renderProgression(); } }));
+  document.querySelectorAll('.add-chord').forEach(b => b.addEventListener('click', e => {
+    const i = +e.target.dataset.i;
+    progression.splice(i+1, 0, { ...progression[i] });
+    reindexProgression(); markEdited(); renderProgression();
+  }));
+}
+
+/* Renumera los acordes tras insertar o eliminar */
+function reindexProgression() { progression.forEach((c, i) => c.index = i); }
+
+/* ====================== Edición de progresiones guardadas ====================== */
+/* Marca la progresión como personalizada y, si viene de la biblioteca,
+   escribe los cambios en la entrada guardada (autoguardado). */
+function markEdited() {
+  customProgression = true;
+  persistCurrentSaved();
+}
+
+function persistCurrentSaved() {
+  if (!currentSavedId) return;
+  const saved = getSavedProgressions();
+  const item = saved.find(x => x.id === currentSavedId);
+  if (!item) { setCurrentSaved(null); return; }
+  Object.assign(item, {
+    key: $('key').value, mode: $('mode').value, meter: $('meter').value,
+    genre: $('genre').value, tempo: $('tempo').value,
+    progression: progression.map(c => ({ ...c })),
+    savedAt: new Date().toISOString()
+  });
+  localStorage.setItem(SAVED_PROGRESSIONS_KEY, JSON.stringify(saved));
+  flashEditingState('Cambios guardados ✓');
+}
+
+/* Vincula (o desvincula) la progresión en pantalla con una entrada guardada */
+function setCurrentSaved(id) {
+  currentSavedId = id || null;
+  const item = currentSavedId ? getSavedProgressions().find(x => x.id === currentSavedId) : null;
+  if (!item) currentSavedId = null;
+  const bar = $('editingBar');
+  if (bar) bar.hidden = !item;
+  if (item) $('editingName').textContent = item.name;
+  if ($('saveAsBtn')) $('saveAsBtn').hidden = !item;
+  if ($('saveBtn')) $('saveBtn').textContent = item ? 'Guardar cambios' : 'Guardar';
+  if ($('editingState')) $('editingState').textContent = 'Los cambios se guardan solos';
+}
+
+let editingStateTimer = null;
+function flashEditingState(msg) {
+  const el = $('editingState');
+  if (!el) return;
+  el.textContent = msg;
+  clearTimeout(editingStateTimer);
+  editingStateTimer = setTimeout(() => { el.textContent = 'Los cambios se guardan solos'; }, 1600);
 }
 
 function updateActiveChord() {
@@ -708,22 +768,33 @@ function askName({ title, value = '', confirmLabel = 'Guardar', onConfirm }) {
 }
 
 /* ---- Guardar ---- */
-function saveProgression() {
+function saveProgression({ asNew = false } = {}) {
+  // Si estamos editando una guardada, "Guardar cambios" la actualiza en su sitio.
+  if (currentSavedId && !asNew) {
+    persistCurrentSaved();
+    const btn = $('saveBtn');
+    if (btn) { btn.textContent = 'Guardado ✓'; setTimeout(() => btn.textContent = 'Guardar cambios', 1600); }
+    return;
+  }
+  const base = currentSavedId ? (getSavedProgressions().find(x => x.id === currentSavedId)?.name || '') : '';
   askName({
-    title: 'Guardar progresión',
-    value: '',
+    title: asNew ? 'Guardar como nueva' : 'Guardar progresión',
+    value: base ? `${base} (copia)` : '',
     confirmLabel: 'Guardar',
     onConfirm: (text) => {
       const saved = getSavedProgressions();
       const name = getUniqueProgressionName(text, saved);
+      const id = cryptoId();
       saved.push({
-        id: cryptoId(), name, savedAt: new Date().toISOString(),
+        id, name, savedAt: new Date().toISOString(),
         key: $('key').value, mode: $('mode').value, meter: $('meter').value,
         genre: $('genre').value, tempo: $('tempo').value,
         progression: progression.map(c => ({ ...c }))
       });
       localStorage.setItem(SAVED_PROGRESSIONS_KEY, JSON.stringify(saved));
-      if ($('saveBtn')) { $('saveBtn').textContent = `Guardado ✓`; setTimeout(() => $('saveBtn').textContent = 'Guardar', 1600); }
+      customProgression = true;
+      setCurrentSaved(id);   // a partir de aquí, editar la modifica a ella
+      flashEditingState('Guardado ✓');
     }
   });
 }
@@ -741,10 +812,11 @@ function renderLibrary() {
   list.innerHTML = saved.map(item => {
     const chords = (item.progression || []).map(chordName).join(' · ');
     const when = formatSavedDate(item.savedAt);
-    return `<div class="lib-item" data-id="${item.id}">
+    const editing = item.id === currentSavedId;
+    return `<div class="lib-item${editing ? ' editing' : ''}" data-id="${item.id}">
       <div class="lib-main">
         <div>
-          <div class="lib-name">${escapeHtml(item.name)}</div>
+          <div class="lib-name">${escapeHtml(item.name)}${editing ? ' <span class="lib-badge">editando</span>' : ''}</div>
           <div class="lib-meta">
             <span class="lib-tag">${escapeHtml(item.genre || '—')}</span>
             <span class="lib-tag">${escapeHtml(item.key || '')} ${escapeHtml(item.mode || '')}</span>
@@ -756,7 +828,7 @@ function renderLibrary() {
       </div>
       <div class="lib-chords">${escapeHtml(chords)}</div>
       <div class="lib-actions">
-        <button data-act="load">▶ Cargar</button>
+        <button data-act="load">${editing ? '▶ Recargar' : '▶ Cargar y editar'}</button>
         <button class="ghost" data-act="rename">Renombrar</button>
         <button class="ghost" data-act="duplicate">Duplicar</button>
         <button class="danger-btn" data-act="delete">Eliminar</button>
@@ -781,7 +853,9 @@ function loadSavedById(id) {
   $('tempo').value = d.tempo; $('tempoValue').textContent = d.tempo;
   applyGenreMix(d.genre);
   progression = (d.progression || []).map(c => ({ ...c }));
+  reindexProgression();
   customProgression = true;
+  setCurrentSaved(id);
   lastKey = $('key').value;
   renderProgression(); updateScaleSuggestion();
   closeModal('libraryModal');
@@ -797,6 +871,7 @@ function renameSaved(id) {
       const others = saved.filter(x => x.id !== id);
       item.name = getUniqueProgressionName(text, others);
       localStorage.setItem(SAVED_PROGRESSIONS_KEY, JSON.stringify(saved));
+      if (id === currentSavedId) setCurrentSaved(id);
       renderLibrary();
     }
   });
@@ -817,6 +892,7 @@ function confirmDelete(btn, id) {
   if (btn.classList.contains('confirm')) {
     const saved = getSavedProgressions().filter(x => x.id !== id);
     localStorage.setItem(SAVED_PROGRESSIONS_KEY, JSON.stringify(saved));
+    if (id === currentSavedId) setCurrentSaved(null);
     renderLibrary();
     return;
   }
@@ -893,7 +969,7 @@ function jazzify() {
     }
   });
   progression = out;
-  customProgression = true;
+  markEdited();
   renderProgression();
 }
 

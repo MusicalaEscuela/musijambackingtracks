@@ -84,11 +84,17 @@
             <button id="addBtn" class="small ghost">＋ Acorde</button>
             <button id="jazzBtn" class="small ghost">🎷 Jazzificar</button>
             <button id="saveBtn" class="small ghost">Guardar</button>
+            <button id="saveAsBtn" class="small ghost" hidden>Guardar como nueva</button>
             <button id="loadBtn" class="small ghost">Cargar</button>
             <button id="copyBtn" class="small">Copiar</button>
           </div>
         </div>
         <p class="hint">Edita cada acorde: cambia su fundamental y su calidad (maj7, m7, 9, sus4…), agrega o quita compases. Guarda varias progresiones con nombres diferentes y vuelve a cargarlas cuando quieras.</p>
+        <div id="editingBar" class="editing-bar" hidden>
+          <span>Editando <strong id="editingName"></strong></span>
+          <span id="editingState" class="editing-state">Los cambios se guardan solos</span>
+          <button id="unlinkBtn" class="small ghost">Desvincular</button>
+        </div>
         <div id="progression" class="progression"></div>
       </section>
 
