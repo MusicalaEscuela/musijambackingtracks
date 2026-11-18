@@ -105,6 +105,8 @@ button:hover { transform: translateY(-1px); }
 .practice-card { background: rgba(0,0,0,.18); border-radius: 20px; padding: 16px; margin-bottom: 12px; }
 .practice-card h3 { margin: 0 0 8px; color: var(--green); }
 .practice-card p { margin: 0; color: var(--text); line-height: 1.45; }
+.loop-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.loop-controls label { min-width: 0; }
 .hint { color: var(--muted); font-size: .88rem; line-height: 1.45; }
 @media (max-width: 860px) {
   .hero, .grid { grid-template-columns: 1fr; display: grid; }

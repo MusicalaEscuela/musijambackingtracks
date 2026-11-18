@@ -128,6 +128,7 @@ let customProgression = false;   // true si la progresión fue cargada o editada
 let currentSavedId = null;       // id de la progresión guardada que estamos editando (null = suelta)
 let lastKey = 'A';               // tono anterior, para transponer progresiones personalizadas
 let isPlaying = false;
+let playbackRun = 0;
 let current16 = 0;           // paso actual dentro del compás (0..15)
 let nextNoteTime = 0;        // tiempo (audioCtx) del próximo paso de 16
 let schedulerId = null;
@@ -166,6 +167,14 @@ function init() {
     persistCurrentSaved();
   }));
   $('tempo').addEventListener('change', persistCurrentSaved);
+  ['loopStart', 'loopEnd'].forEach(id => $(id).addEventListener('change', () => {
+    const start = $('loopStart');
+    const end = $('loopEnd');
+    if (start.value && end.value && Number(start.value) > Number(end.value)) {
+      if (id === 'loopStart') end.value = start.value;
+      else start.value = end.value;
+    }
+  }));
   $('startBtn').addEventListener('click', startJam);
   $('stopBtn').addEventListener('click', stopJam);
   $('randomBtn').addEventListener('click', randomize);
@@ -251,6 +260,13 @@ function chordQuality(degree, mode, style) {
 function chordName(c) { return c.root + c.quality; }
 
 function renderProgression() {
+  const options = progression.map((_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+  for (const [id, label] of [['loopStart', 'Inicio'], ['loopEnd', 'Final']]) {
+    const select = $(id);
+    const previous = select.value;
+    select.innerHTML = `<option value="">${label}</option>${options}`;
+    select.value = previous ? String(Math.min(Number(previous), progression.length)) : '';
+  }
   $('progression').innerHTML = progression.map((c, i) =>
     `<div class="chord" data-i="${i}">
        <small>${i+1}</small>
@@ -321,12 +337,15 @@ function flashEditingState(msg) {
   editingStateTimer = setTimeout(() => { el.textContent = 'Los cambios se guardan solos'; }, 1600);
 }
 
-function updateActiveChord() {
-  const idx = chordIndexForBar();
+function updateActiveChord(idx = chordIndexForBar()) {
   document.querySelectorAll('.chord').forEach(el => el.classList.toggle('active', +el.dataset.i === idx));
-  $('currentChord').textContent = chordName(progression[idx]) || '—';
+  $('currentChord').textContent = progression[idx] ? chordName(progression[idx]) : '—';
 }
-function chordIndexForBar() { return barCount % progression.length; }
+function chordIndexForBar(bar = barCount) {
+  const start = (Number($('loopStart').value) || 1) - 1;
+  const end = Number($('loopEnd').value) || progression.length;
+  return start + bar % (end - start);
+}
 
 /* ====================== Audio (grafo) ====================== */
 function ensureAudio() {
@@ -395,18 +414,20 @@ function startJam() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
   if (isPlaying) return;
   isPlaying = true;
+  playbackRun++;
+  master.gain.setValueAtTime(.9, audioCtx.currentTime);
   current16 = 0; barCount = 0; lastVoicing = null; currentVoicing = null;
-  const beatDur = 60 / Number($('tempo').value);
+  const beatDur = stepDuration() * beatSteps();
   const startAt = audioCtx.currentTime + .12;
   // Conteo de entrada: un compás de clics (el "1" acentuado) antes de tocar
-  const countBeats = $('meter').value === '6/8' ? 6 : Number($('meter').value[0]);
+  const countBeats = meterSteps() / beatSteps();
   for (let i = 0; i < countBeats; i++) {
     countClick(startAt + i * beatDur, i === 0);
-    flashBeat(startAt + i * beatDur, i === 0, 4 - i);
+    flashBeat(startAt + i * beatDur, i === 0, i + 1);
   }
   nextNoteTime = startAt + countBeats * beatDur;   // la música arranca tras el conteo
   $('audioStatus').textContent = 'Conteo…';
-  setTimeout(() => { if (isPlaying) $('audioStatus').textContent = 'Sonando'; }, countBeats * beatDur * 1000);
+  atPlaybackTime(nextNoteTime, () => { $('audioStatus').textContent = 'Sonando'; });
   updateActiveChord();
   scheduler();
 }
@@ -418,23 +439,37 @@ function countClick(time, accent) {
   g.gain.setValueAtTime(accent ? .3 : .18, time);
   g.gain.exponentialRampToValueAtTime(.0001, time + .05);
   osc.connect(g); g.connect(master); osc.start(time); osc.stop(time + .06);
+  countClicks.add(osc);
+  osc.onended = () => countClicks.delete(osc);
+}
+
+const countClicks = new Set();
+
+function atPlaybackTime(time, callback) {
+  const run = playbackRun;
+  setTimeout(() => {
+    if (isPlaying && run === playbackRun) callback();
+  }, Math.max(0, (time - audioCtx.currentTime) * 1000));
 }
 
 /* Pulso visual sincronizado al audio (incluye número durante el conteo) */
 function flashBeat(time, accent, countNumber) {
-  const delay = Math.max(0, (time - audioCtx.currentTime) * 1000);
-  setTimeout(() => {
+  atPlaybackTime(time, () => {
     const dot = $('beatDot'); if (!dot) return;
     dot.classList.remove('pulse'); void dot.offsetWidth; dot.classList.add('pulse');
     dot.classList.toggle('accent', !!accent);
     if (countNumber) { $('currentChord').textContent = String(countNumber); }
-  }, delay);
+  });
 }
 
 function stopJam() {
+  if (!isPlaying) return;
   isPlaying = false;
   if (schedulerId) clearTimeout(schedulerId);
   schedulerId = null;
+  countClicks.forEach(click => click.stop());
+  master.gain.setValueAtTime(0, audioCtx.currentTime);
+  updateActiveChord();
   $('audioStatus').textContent = 'Audio apagado';
 }
 
@@ -489,10 +524,10 @@ function scheduleStep(step, time, kit) {
   // Inicio de compás: cambia acorde y dibuja
   if (step === 0) {
     const idx = chordIndexForBar();
-    requestAnimationFrame(updateActiveChord);
+    atPlaybackTime(time, () => updateActiveChord(idx));
     setChordForBar(progression[idx]);
     // Crash suave al comenzar cada vuelta de la progresión (no en cada compás)
-    if (chordIndexForBar() === 0 && barCount > 0) crash(time, .5);
+    if (idx === chordIndexForBar(0) && barCount > 0) crash(time, .5);
   }
   // Comping de la armonía según el patrón del género
   const compPat = currentComp();
@@ -612,7 +647,7 @@ function bassHit(midi, time, dur, peak = .26) {
 }
 
 function nextChordRoot() {
-  const nextIdx = (chordIndexForBar() + 1) % progression.length;
+  const nextIdx = chordIndexForBar(barCount + 1);
   return noteMidi(progression[nextIdx].root, 2);
 }
 
@@ -747,9 +782,34 @@ function randomize() {
   buildProgression(); updateScaleSuggestion(); newChallenge();
 }
 
-function copyProgression() {
-  navigator.clipboard.writeText(progression.map(chordName).join(' | '));
-  $('copyBtn').textContent = 'Copiado'; setTimeout(() => $('copyBtn').textContent = 'Copiar', 1000);
+async function copyProgression() {
+  const text = progression.map(chordName).join(' | ');
+  if (window.musijamClipboard) {
+    window.musijamClipboard.onmessage = event => showCopyResult(event.data === 'copied');
+    window.musijamClipboard.postMessage(text);
+    return;
+  }
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    copied = true;
+  } catch {
+    const field = document.createElement('textarea');
+    field.value = text;
+    field.readOnly = true;
+    field.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.append(field);
+    field.select();
+    copied = document.execCommand('copy');
+    field.remove();
+    $('copyBtn').focus();
+  }
+  showCopyResult(copied);
+}
+
+function showCopyResult(copied) {
+  $('copyBtn').textContent = copied ? 'Copiado' : 'No se pudo copiar';
+  setTimeout(() => $('copyBtn').textContent = 'Copiar', 1600);
 }
 
 /* ---- Modales genéricos ---- */
